@@ -7,21 +7,26 @@ Vault + PostgreSQL.
 🏗️ Arquitectura basada en Microservicios
 
 El sistema está compuesto por:
-                    ┌────────────────────┐
-                    │   Discovery Server │
-                    │      (Eureka)      │
-                    │       :8761        │
-                    └─────────▲──────────┘
-                              │
-         ┌────────────────────┼────────────────────┐
-         │                    │                    │
-┌───────────────┐   ┌────────────────┐   ┌────────────────┐
-│ product-service│   │ discount-service│   │ catalog-service│
-│     :8081     │   │      :8082     │   │      :8083     │
-└───────────────┘   └────────────────┘   └────────────────┘
-         │                    │                    │
-         └────────── PostgreSQL Database ──────────┘
 
+flowchart TB
+  eureka["Discovery Server<br/>(Eureka)<br/><b>:8761</b>"]:::box
+
+  product["product-service<br/><b>:8081</b>"]:::box
+  discount["discount-service<br/><b>:8082</b>"]:::box
+  catalog["catalog-service<br/><b>:8083</b>"]:::box
+
+  db[("PostgreSQL Database")]:::db
+
+  eureka --> product
+  eureka --> discount
+  eureka --> catalog
+
+  product --> db
+  discount --> db
+  catalog --> db
+
+  classDef box fill:#111,color:#fff,stroke:#888,stroke-width:1px;
+  classDef db fill:#111,color:#fff,stroke:#4caf50,stroke-width:1px;
 
 # 📌 Arquitectura General
 
