@@ -1,110 +1,206 @@
-# 🧩 Product Catalog Microservices System
-
-Sistema distribuido basado en Spring Boot + Spring Cloud + Eureka +
-Vault + PostgreSQL.
-
-------------------------------------------------------------------------
-🏗️ Arquitectura basada en Microservicios
-
-El sistema está compuesto por:
-
-                 ┌───────────────────────────┐
-                 │   Discovery Server        │
-                 │        (Eureka)           │
-                 │           :8761           │
-                 └─────────────┬─────────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        │                      │                      │
-┌───────┴────────┐    ┌────────┴────────┐    ┌────────┴────────┐
-│ product-service │   │ discount-service│    │ catalog-service │
-│     :8081       │   │     :8082       │    │     :8083       │
-└───────┬────────┘    └────────┬────────┘    └────────┬────────┘
-        │                      │                      │
-        └──────────────┬───────┴──────────┬───────────┘
-                       │                  │
-                 ┌─────┴──────────────────┴─────┐
-                 │        PostgreSQL Database   │
-                 └──────────────────────────────┘
-
-# 📌 Arquitectura General
-
-Microservicios:
-
--   discovery-service (Eureka Server) → 8761
--   product-service → 8081
--   discount-service → 8082
--   catalog-service → 8083
-
-Comunicación mediante: - Eureka Service Discovery - RestClient - Spring
-Cloud LoadBalancer
+# 🏗️ Microservices Architecture - Spring Boot + Eureka + Vault + PostgreSQL
 
 ------------------------------------------------------------------------
 
-# 🏗️ Arquitectura
+# 📌 Descripción General
 
-Discovery Server registra todos los servicios. Catalog-service consume
-product-service y discount-service.
+Este proyecto implementa una arquitectura basada en microservicios
+utilizando:
+
+-   Spring Boot 4
+-   Spring Cloud Netflix Eureka
+-   Spring Cloud Config
+-   HashiCorp Vault
+-   PostgreSQL
+-   Spring Cloud LoadBalancer
+-   RestClient (Spring 6+)
+
+El sistema está compuesto por múltiples servicios desacoplados que se
+registran dinámicamente en Eureka y se comunican entre sí usando
+descubrimiento de servicios.
 
 ------------------------------------------------------------------------
 
-# 📦 Servicios
+# 🧱 Arquitectura General
 
-## discovery-service
+                     ┌───────────────────────────┐
+                     │   Discovery Server        │
+                     │        (Eureka)           │
+                     │           :8761           │
+                     └─────────────┬─────────────┘
+                                   │
+            ┌──────────────────────┼──────────────────────┐
+            │                      │                      │
+    ┌───────┴────────┐    ┌────────┴────────┐    ┌────────┴────────┐
+    │ product-service │    │ discount-service│    │ catalog-service  │
+    │     :8081       │    │     :8082       │    │     :8083        │
+    └───────┬────────┘    └────────┬────────┘    └────────┬────────┘
+            │                      │                      │
+            └──────────────┬───────┴──────────┬───────────┘
+                           │                  │
+                     ┌─────┴──────────────────┴─────┐
+                     │        PostgreSQL Database     │
+                     └───────────────────────────────┘
 
-Servidor Eureka. @EnableEurekaServer URL: http://localhost:8761
+------------------------------------------------------------------------
 
-## product-service
+# 🚀 Servicios
 
-GET /products GET /products/{id} POST /products PUT /products/{id}
+## 1️⃣ Discovery Service (Eureka Server)
+
+Puerto: 8761
+
+Responsable de registrar y descubrir microservicios.
+
+### Dependencias principales:
+
+-   spring-cloud-starter-netflix-eureka-server
+
+### Activación:
+
+``` java
+@EnableEurekaServer
+```
+
+------------------------------------------------------------------------
+
+## 2️⃣ Product Service
+
+Puerto: 8081
+
+Responsable de gestionar productos.
+
+### Funcionalidades:
+
+-   CRUD de productos
+-   Persistencia en PostgreSQL
+
+### Endpoints:
+
+GET /products\
+GET /products/{id}\
+POST /products\
+PUT /products/{id}\
 DELETE /products/{id}
 
-## discount-service
+------------------------------------------------------------------------
 
-GET /discounts GET /discounts/{id} GET /discounts/product/{productId}
-POST /discounts PUT /discounts/{id} DELETE /discounts/{id}
+## 3️⃣ Discount Service
 
-## catalog-service
+Puerto: 8082
 
-GET /catalog/products/{id}
+Responsable de gestionar descuentos por producto.
 
-Calcula precio final aplicando descuento.
+### Endpoints:
+
+GET /discounts/product/{productId}
 
 ------------------------------------------------------------------------
 
-# 🔐 Vault Config
+## 4️⃣ Catalog Service
 
-spring.cloud.vault.host=localhost spring.cloud.vault.port=8200
-spring.cloud.vault.authentication=TOKEN
+Puerto: 8083
+
+Servicio agregador que consulta:
+
+-   product-service
+-   discount-service
+
+Calcula precio final con descuento aplicado.
+
+### Endpoint principal:
+
+GET /catalog/{productId}
 
 ------------------------------------------------------------------------
 
 # 🗄️ Base de Datos
 
-CREATE TABLE products ( id SERIAL PRIMARY KEY, codigo VARCHAR(50),
-nombre VARCHAR(100), descripcion TEXT, precio NUMERIC(10,2), estado
-VARCHAR(20), creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
+Motor: PostgreSQL
 
-CREATE TABLE discounts ( id SERIAL PRIMARY KEY, product_id INT,
-porcentaje NUMERIC(5,2), estado VARCHAR(20), creado_en TIMESTAMP DEFAULT
-CURRENT_TIMESTAMP );
+Cada microservicio puede tener su propia base de datos (arquitectura
+recomendada) o compartir esquema.
 
 ------------------------------------------------------------------------
 
-# 🚀 Ejecución
+# 🔐 Integración con Vault
+
+Vault almacena credenciales sensibles:
+
+-   db.url
+-   db.username
+-   db.password
+
+Configuración en application.properties:
+
+    spring.config.import=optional:configserver:http://localhost:8888,optional:vault://
+    spring.cloud.vault.host=localhost
+    spring.cloud.vault.port=8200
+    spring.cloud.vault.authentication=TOKEN
+    spring.cloud.vault.token=root
+    spring.cloud.vault.kv.enabled=true
+    spring.cloud.vault.kv.backend=secret
+    spring.cloud.vault.kv.application-name=db
+
+------------------------------------------------------------------------
+
+# 🔄 Flujo de Comunicación
+
+1.  Microservicio arranca
+2.  Se registra en Eureka
+3.  Otros servicios lo descubren dinámicamente
+4.  Catalog usa RestClient con LoadBalancer
+5.  LoadBalancer resuelve instancia desde Eureka
+
+------------------------------------------------------------------------
+
+# ▶️ Orden de Ejecución
 
 1.  Levantar PostgreSQL
-2.  Ejecutar discovery-service
-3.  Ejecutar product-service
-4.  Ejecutar discount-service
-5.  Ejecutar catalog-service
+2.  Levantar Vault
+3.  Levantar Config Server (si aplica)
+4.  Levantar Discovery Service
+5.  Levantar product-service
+6.  Levantar discount-service
+7.  Levantar catalog-service
 
 ------------------------------------------------------------------------
 
-# 📊 Tecnologías
+# 🧩 Tecnologías Utilizadas
 
-Java 17 Spring Boot Spring Cloud Eureka Vault PostgreSQL Docker Maven
+-   Java 17+
+-   Spring Boot 4
+-   Spring Cloud 2026
+-   Hibernate 7
+-   HikariCP
+-   Maven
 
 ------------------------------------------------------------------------
 
-Autor: Arquitectura de Microservicios
+# 📦 Cómo ejecutar
+
+Desde cada microservicio:
+
+    mvn clean install
+    mvn spring-boot:run
+
+O desde IDE ejecutando la clase Application.
+
+------------------------------------------------------------------------
+
+# 📊 Beneficios de la Arquitectura
+
+✔ Escalabilidad independiente\
+✔ Despliegue independiente\
+✔ Desacoplamiento\
+✔ Tolerancia a fallos\
+✔ Seguridad centralizada
+
+------------------------------------------------------------------------
+
+# 👨‍💻 Autor
+
+Proyecto académico/profesional basado en arquitectura moderna de
+microservicios.
+
+------------------------------------------------------------------------
